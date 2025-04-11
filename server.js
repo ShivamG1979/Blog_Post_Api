@@ -27,7 +27,7 @@ app.use("/api", userRouter);
 // postRouter
 app.use("/api", postRouter); 
 
-// DB Connection
+// DB Connection 
 mongoose
   .connect(process.env.MONGO_URL, {
     dbName: "Blogging_MERN_Volcanus",

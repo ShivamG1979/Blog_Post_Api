@@ -7,7 +7,9 @@ import {
   deletePost,
   likePostById,
   commentPostById,
-  getCommentByPostId
+  getCommentByPostId,
+  unlikePostById,
+  
   // findCommentByPostId,
 } from "../controllers/post.js";
 
@@ -31,6 +33,10 @@ postRouter.post("/post/comment/:id",Authenticate, commentPostById);
 
 postRouter.get("/post/comment/:id", Authenticate, getCommentByPostId);
 
+postRouter.delete("/post/like/:id", Authenticate, unlikePostById);
+
+
+
 // file upload section start from here
 
 // file uplaod
@@ -39,7 +45,7 @@ import multer from "multer";
 import cloudinary from "cloudinary";
 
 const { v2: cloudinaryV2 } = cloudinary;
-
+ 
 // Configure Cloudinary
 cloudinaryV2.config({
   cloud_name: "dhnat7kyj",
@@ -74,10 +80,10 @@ postRouter.post("/upload", upload.single("file"), async (req, res) => {
 
     const uploadResponse = await cloudinaryV2.uploader.upload(file.buffer, {
       folder: "home", // Set your desired folder in Cloudinary
-      public_id: `user_${name}_${Date.now()}`, // Unique public_id
+      public_id: `user_${name}_${Date.now}`, 
     });
 
-    // Save file and user information to MongoDB
+    // Save file and user information to MongoDB 
     const newUser = await User.create({
       name,
       email,

@@ -24,16 +24,19 @@ export const getPosts = async (req, res) => {
 
 export const updatePost = async (req, res) => {
   const id = req.params.id;
-
   const { title, description, imgUrl } = req.body;
 
   let post = await Post.findById(id);
 
   if (!post) return res.json({ message: "Invalid Id" });
+  
+  // Add permission check
+  if(post.user.toString() !== req.user._id.toString()) 
+    return res.status(403).json({error: "You are not authorized to update this post"});
 
-  (post.title = title),
-    (post.description = description),
-    (post.imgUrl = imgUrl);
+  post.title = title;
+  post.description = description;
+  post.imgUrl = imgUrl;
 
   await post.save();
 
@@ -86,6 +89,32 @@ export const likePostById = async (req, res) => {
     res.json({ message: "Internal Sever Error Occure", error });
   }
 };
+
+
+
+// Add this function to your post controller file
+export const unlikePostById = async (req, res) => {
+  const id = req.params.id;
+  
+  try {
+    const post = await Post.findById(id);
+    if (!post) return res.json({ message: "Post not exist.." });
+
+    // Check if user has liked the post
+    const likeIndex = post.likes.indexOf(req.user._id);
+    if (likeIndex === -1)
+      return res.json({ error: "You haven't liked this post yet" });
+
+    // Remove user from likes array
+    post.likes.splice(likeIndex, 1);
+    await post.save();
+
+    res.json({ message: "Post unliked successfully", post });
+  } catch (error) {
+    res.json({ error: "Internal Server Error Occurred", details: error.message });
+  }
+};
+
 
 export const commentPostById = async (req, res) => {
   const id = req.params.id;

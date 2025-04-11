@@ -25,8 +25,8 @@ const postSchema = new mongoose.Schema({
     default: Date.now(),
   },
 
-  //   follows: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  //   following:[{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+    follows: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    following:[{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
 });
 
 export const Post = mongoose.model("Post", postSchema);

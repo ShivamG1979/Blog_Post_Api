@@ -1,9 +1,6 @@
 import express from "express";
 import {
-  register,
-  login,
-  getAllUsers,
-  getUserById,
+  register, login, getAllUsers, getUserById,
 } from "../controllers/user.js";
 
 import { Authenticate } from "../middlewares/auth.js";
@@ -20,8 +17,10 @@ router.get("/users", getAllUsers);
 
 router.get("/user/:id",Authenticate, getUserById);
 
-router.get("/superman", Authenticate, (req, res) =>
-  res.json({ message: "This is Superman route..!", user: req.user })
-);
+router.get("/me", Authenticate, (req, res) => {
+  res.status(200).json({ user: req.user });
+});
+
+// In user.js router file, add this new route:
 
 export default router;
