@@ -67,7 +67,6 @@ export const getPostById = async (req, res) => {
   res.json({ post, numberOfLikes: post.likes.length });
 };
 
-// extra..
 
 export const likePostById = async (req, res) => {
   const id = req.params.id;

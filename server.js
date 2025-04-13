@@ -30,7 +30,7 @@ app.use("/api", postRouter);
 // DB Connection 
 mongoose
   .connect(process.env.MONGO_URL, {
-    dbName: "Blogging_MERN_Volcanus",
+    dbName: "Blogging_MERN_Volcanus", 
   })
   .then(() => console.log("MongoDB is Connected..!"));
 
