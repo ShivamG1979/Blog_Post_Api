@@ -115,6 +115,37 @@ export const unlikePostById = async (req, res) => {
 };
 
 
+// export const commentPostById = async (req, res) => {
+//   const id = req.params.id;
+//   const post = await Post.findById(id);
+//   if (!post) return res.json({ message: "Post not exist.." });
+
+//   const { comment } = req.body;
+
+//   const postComment = await Comments.create({
+//     comment,
+//     userId: req.user,
+//     postId: id,
+//   });
+
+//   res.json({ message: "comment added", postComment });
+// };
+
+
+// export const getCommentByPostId = async (req,res) =>{
+//    const id = req.params.id;
+//    const post = await Post.findById(id);
+//    if (!post) return res.json({ message: "Post not exist.." });
+
+//    const postComment = await Comments.find({postId:id})
+
+//    if(!postComment) return res.json({message:"no comments"});
+
+//    res.json({message:"post comments", postComment});
+// }
+
+// Enhanced comment post function with user details
+
 export const commentPostById = async (req, res) => {
   const id = req.params.id;
   const post = await Post.findById(id);
@@ -122,24 +153,78 @@ export const commentPostById = async (req, res) => {
 
   const { comment } = req.body;
 
-  const postComment = await Comments.create({
+  // Create new comment
+  const newComment = await Comments.create({
     comment,
-    userId: req.user,
+    userId: req.user._id,
     postId: id,
   });
 
-  res.json({ message: "comment added", postComment });
+  // Get all comments for this post
+  const allComments = await Comments.find({ postId: id })
+    .populate('userId', 'name')
+    .sort({ createdAt: -1 });
+  
+  // Format comments to match expected structure in frontend
+  const formattedComments = allComments.map(comment => ({
+    _id: comment._id,
+    text: comment.comment,
+    user: comment.userId ? comment.userId.name : 'Anonymous',
+    createdAt: comment.createdAt
+  }));
+
+  res.json({ 
+    message: "Comment added successfully", 
+    postComment: newComment,
+    comments: formattedComments  // Add this line to include all comments
+  });
 };
 
+// Get comments with user details
+export const getCommentByPostId = async (req, res) => {
+  const id = req.params.id;
+  
+  try {
+    const post = await Post.findById(id);
+    if (!post) return res.json({ message: "Post not exist.." });
 
-export const getCommentByPostId = async (req,res) =>{
-   const id = req.params.id;
-   const post = await Post.findById(id);
-   if (!post) return res.json({ message: "Post not exist.." });
+    const comments = await getFormattedComments(id);
 
-   const postComment = await Comments.find({postId:id})
+    res.json({ 
+      message: "Post comments retrieved", 
+      postComment: comments 
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving comments", error: error.message });
+  }
+};
 
-   if(!postComment) return res.json({message:"no comments"});
-
-   res.json({message:"post comments", postComment});
-}
+// Helper function to retrieve and format comments with user data
+async function getFormattedComments(postId) {
+  // Find all comments for the post
+  const comments = await Comments.find({ postId })
+    .sort({ createdAt: -1 }) // Sort by most recent first
+    .lean();
+  
+  // Get user information for each comment
+  const formattedComments = await Promise.all(comments.map(async (comment) => {
+    try {
+      const user = await User.findById(comment.userId).lean();
+      return {
+        _id: comment._id,
+        text: comment.comment,
+        user: user ? user.name : "Anonymous",
+        userId: comment.userId,
+        createdAt: comment.createdAt
+      };
+    } catch (error) {
+      console.error("Error formatting comment:", error);
+      return { 
+        _id: comment._id,
+        text: comment.comment,
+        user: "Anonymous",
+        userId: comment.userId,
+        createdAt: comment.createdAt
+      };
+    }
+  }));}
