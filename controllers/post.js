@@ -1,6 +1,103 @@
-import { Post } from "../Models/Post.js";
+// controllers/post.js
+import { Post, UserFile } from "../Models/Post.js";
 import { Comments } from "../Models/Comments.js";
+import { User } from "../Models/User.js";
+import multer from "multer";
+import cloudinary from "cloudinary";
 
+// Set up multer for file uploads
+const storage = multer.memoryStorage(); // Store files in memory
+export const upload = multer({ storage });
+
+// File upload controller function
+export const uploadFile = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const file = req.file;
+
+    if (!file || !name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Please provide all required information" });
+    }
+
+    // We're using cloudinary from the global scope as it's initialized in server.js
+    const uploadResponse = await cloudinary.v2.uploader.upload(
+      `data:${file.mimetype};base64,${file.buffer.toString('base64')}`, 
+      {
+        folder: "home", // Set your desired folder in Cloudinary
+        public_id: `user_${name}_${Date.now()}`,
+      }
+    );
+
+    // Save file and user information to MongoDB
+    const newUser = await UserFile.create({
+      name,
+      email,
+      password,
+      filename: file.originalname,
+      public_id: uploadResponse.public_id,
+      url: uploadResponse.secure_url,
+    });
+
+    // Send response with user data and file upload URL
+    res.status(200).json({
+      message: "File and user information uploaded to Cloudinary successfully",
+      user: newUser,
+      fileUrl: uploadResponse.secure_url,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
+  }
+};
+
+// Add a function to upload an image and attach it to a post
+export const uploadPostImage = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ message: "Please provide an image file" });
+    }
+
+    // Find the post
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // Check if user is authorized to modify this post
+    if (post.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "You are not authorized to modify this post" });
+    }
+
+    // Upload to cloudinary
+    const uploadResponse = await cloudinary.v2.uploader.upload(
+      `data:${file.mimetype};base64,${file.buffer.toString('base64')}`, 
+      {
+        folder: "posts",
+        public_id: `post_${postId}_${Date.now()}`,
+      }
+    );
+
+    // Update post with new image URL
+    post.imgUrl = uploadResponse.secure_url;
+    await post.save();
+
+    res.status(200).json({
+      message: "Image uploaded successfully",
+      post,
+      imageUrl: uploadResponse.secure_url
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
+  }
+};
+
+// Original post controller functions
 export const addPost = async (req, res) => {
   const { title, description, imgUrl } = req.body;
 
@@ -14,6 +111,7 @@ export const addPost = async (req, res) => {
   res.status(200).json({ message: "Post uploaded..!", post });
 };
 
+// Keep all your other controller functions...
 export const getPosts = async (req, res) => {
   const posts = await Post.find();
 
@@ -50,7 +148,8 @@ export const deletePost = async (req, res) => {
 
   if (!post) return res.json({ message: "Invalid Id.." });
 
-  if(post.user.toString() != req.user._id.toString()) return res.json({message:"you are not authorize to delete this post"}) 
+  if(post.user.toString() != req.user._id.toString()) 
+    return res.json({message:"you are not authorize to delete this post"}) 
 
   await post.deleteOne();
 
@@ -66,7 +165,6 @@ export const getPostById = async (req, res) => {
 
   res.json({ post, numberOfLikes: post.likes.length });
 };
-
 
 export const likePostById = async (req, res) => {
   const id = req.params.id;
@@ -89,9 +187,6 @@ export const likePostById = async (req, res) => {
   }
 };
 
-
-
-// Add this function to your post controller file
 export const unlikePostById = async (req, res) => {
   const id = req.params.id;
   
@@ -113,38 +208,6 @@ export const unlikePostById = async (req, res) => {
     res.json({ error: "Internal Server Error Occurred", details: error.message });
   }
 };
-
-
-// export const commentPostById = async (req, res) => {
-//   const id = req.params.id;
-//   const post = await Post.findById(id);
-//   if (!post) return res.json({ message: "Post not exist.." });
-
-//   const { comment } = req.body;
-
-//   const postComment = await Comments.create({
-//     comment,
-//     userId: req.user,
-//     postId: id,
-//   });
-
-//   res.json({ message: "comment added", postComment });
-// };
-
-
-// export const getCommentByPostId = async (req,res) =>{
-//    const id = req.params.id;
-//    const post = await Post.findById(id);
-//    if (!post) return res.json({ message: "Post not exist.." });
-
-//    const postComment = await Comments.find({postId:id})
-
-//    if(!postComment) return res.json({message:"no comments"});
-
-//    res.json({message:"post comments", postComment});
-// }
-
-// Enhanced comment post function with user details
 
 export const commentPostById = async (req, res) => {
   const id = req.params.id;
@@ -227,4 +290,7 @@ async function getFormattedComments(postId) {
         createdAt: comment.createdAt
       };
     }
-  }));}
+  }));
+  
+  return formattedComments;
+}
